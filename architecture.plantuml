@@ -1,1 +1,177 @@
+@startuml
+title Home Architecture
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+!include <tupadr3/font-awesome/Database>
+!include <tupadr3/font-awesome/User>
+!include <tupadr3/font-awesome/Server>
+!define osaPuml https://raw.githubusercontent.com/Crashedmind/PlantUML-opensecurityarchitecture2-icons/master
+!include osaPuml/Common.puml
+!include osaPuml/User/all.puml
+!include <office/Servers/database_server>
+!include <office/Servers/file_server>
+!include <office/Servers/application_server>
+!include <office/Concepts/service_application>
+!include <office/Concepts/firewall>
 
+AddElementTag("fallback", $bgColor="#c0c0c0")
+AddRelTag("fallback", $textColor="#c0c0c0", $lineColor="#438DD5")
+WithoutPropertyHeader()
+
+AddPersonTag("admin", $sprite="osa_user_audit,color=red", $legendSprite="osa_user_audit,scale=0.25,color=red", $legendText="administration user")
+AddContainerTag("teleport", $sprite="service_application", $legendText="Teleport Container")
+AddContainerTag("azure", $sprite="service_application", $legendText="Azure")
+AddContainerTag("docker", $sprite="service_application", $legendText="Docker")
+AddContainerTag("vm", $sprite="osa_user_large_group", $legendText="Virtual Machine")
+AddContainerTag("hypervisor", $sprite="application_server", $legendText="Hypervisor")
+
+AddPersonTag("user", $sprite="osa_user_large_group", $legendText="User")
+AddContainerTag("cloudflare", $sprite="service_application", $legendText="Cloudflare")
+AddContainerTag("cloud", $sprite="application_server", $legendText="Cloud")
+AddContainerTag("storage", $sprite="database_server", $legendText="Storage")
+AddContainerTag("network", $sprite="file_server", $legendText="Network")
+
+AddRelTag("firewall", $textColor="$ARROW_FONT_COLOR", $lineColor="$ARROW_COLOR", $sprite="firewall,scale=0.3,color=red", $legendText="firewall")
+
+Person(user, "User", "Accesses the system via Cloudflare", $tags="user")
+Person(administration_user, "Antoine", $tags="admin")
+
+Deployment_Node(cloudflare, "Cloudflare", "CDN & Reverse Proxy", $tags="cloudflare")
+
+System_Boundary(cloud, "Cloud", $tags="cloud") {
+    Deployment_Node(azure, "Azure", $tags="azure") {
+        Container(blob, "Blob Storage", "Stores CVs & papers", $tags="storage")
+        AddProperty("Storage Capacity", "10GB")
+    }
+}
+
+System_Boundary(ovh, "OVH", $tags="cloud") {
+    AddProperty("Cost", "$6 per month")
+    AddProperty("CPU", "1")
+    AddProperty("RAM", "2GB")
+    AddProperty("Disk", "20GB")
+    Deployment_Node(vps, "OVH VPS", "Virtual Private Server", $tags="hypervisor") {
+        Container(teleport, "Teleport", "Access management for SSH", $tags="teleport")
+        Container(uptime, "Uptime Kuma", "Uptime monitoring", $tags="docker")
+        Container(caddy, "Caddy", "Reverse Proxy", $tags="docker")
+    }
+}
+
+System_Boundary(homenetwork, "Home Network", $tags="network") {
+    AddProperty("Version", "8.2")
+    AddProperty("Disk", "8.5TB")
+    AddProperty("CPU", "1")
+    AddProperty("RAM", "4GB")
+    Deployment_Node(xcp, "XCP-ng Hypervisor", $tags="hypervisor") {
+        AddProperty("Version", "2.6.5")
+        AddProperty("Disk", "10GB")
+        AddProperty("CPU", "1")
+        AddProperty("RAM", "4GB")
+        Container(openvpn, "OpenVPN", "OpenVPN", $tags="vm") {
+            Container(openvpn_docker, "OpenVPN", "OpenVPN", $tags="docker") 
+        }
+        AddProperty("Disk", "30GB")
+        AddProperty("CPU", "1")
+        AddProperty("RAM", "4GB")
+        Deployment_Node(homeassit, "Home Assitant", "Home Assitant", $tags="vm") {
+           Container(homeassistant, "Home Assistant", "Home Assistant", $tags="docker") 
+        }
+    }
+}
+
+System_Boundary(personalnetwork, "Personal Network", $tags="network") {
+    AddProperty("Storage Capacity", "8TB")
+    AddProperty("CPU", "1")
+    AddProperty("RAM", "8GB")
+    ContainerDb(nas, "QNAP NAS", "Network Attached Storage for data backup and sharing", $tags="storage") {
+        AddProperty("Disk", "4TB")
+        AddProperty("CPU", "1")
+        AddProperty("RAM", "4GB")
+        Deployment_Node(media, "MediaManager", "Media management", $tags="vm") {
+            Container(sonarr, "Sonarr", "TV series management", $tags="docker")
+            Container(bazarr, "Bazarr", "Subtitle management", $tags="docker")
+            Container(radarr, "Radarr", "Movie management", $tags="docker")
+            Container(jackett, "Jackett", "API support for torrent trackers", $tags="docker")
+            Container(nzbhydra2, "NZBHydra2", "Usenet meta search", $tags="docker")
+            Container(netdata, "Netdata", "Real-time performance monitoring", $tags="docker")
+            Container(deluge, "Deluge", "BitTorrent client", $tags="docker")
+            Container(jellyfin, "Jellyfin", "Media system", $tags="docker")
+            Container(plex, "Plex", "Media server", $tags="docker")
+        }
+
+    }
+    AddProperty("RAM", "24GB")
+    AddProperty("CPU", "2")
+    AddProperty("Disk", "8TB")
+    Deployment_Node(proxmox, "Proxmox Hypervisor", $tags="hypervisor") {
+        AddProperty("Version", "20.04")
+        AddProperty("RAM", "4GB")
+        AddProperty("CPU", "1")
+        AddProperty("Disk", "200GB")
+        Deployment_Node(ubuntu, "Ubuntu Server", "Personal use server", $tags="vm") {
+           Container(jupyterNotebook, "JupyterNotebook", "JupyterNotebook", $tags="docker")
+        }
+        AddProperty("Version", "1.4.6")
+        AddProperty("RAM", "4GB")
+        AddProperty("CPU", "1")
+        AddProperty("Disk", "200GB")
+        Deployment_Node(talos, "Talos OS", "Kubernetes platform", $tags="vm") {
+           Container(portainer, "Portainer", "Docker management", $tags="docker") 
+           Container(ainewstracker, "AI News Tracker", "AlgoETS", $tags="docker")
+           Container(marketwatchbot, "Marketwatch", "Paper Trading Bot AlgoETS", $tags="docker") 
+           Container(freqtrade, "Freqtrade", "CryptoBot AlgoETS", $tags="docker") 
+        }
+        AddProperty("RAM", "8GB")
+        AddProperty("CPU", "2")
+        AddProperty("Disk", "1TB")
+        Deployment_Node(minecraft, "Minecraft", "Minecraft", $tags="vm") {
+           Container(minecraft_container, "Minecraft", "Minecraft", $tags="docker")
+        }
+        AddProperty("RAM", "4GB")
+        AddProperty("CPU", "1")
+        AddProperty("Disk", "100GB")
+        Deployment_Node(homeassitants, "HomeAssistants", "Home automation", $tags="vm") {
+           Container(homeassistants, "Home Assistant", "Home Assistant", $tags="docker")
+           Container(go2rtc, "Go2RTC", "Video Conversion", $tags="docker")
+        }
+        AddProperty("RAM", "2GB")
+        AddProperty("CPU", "1")
+        AddProperty("Disk", "100GB")
+        Deployment_Node(caddy_personal_vm, "Caddy", "Reverse Proxy & Monitoring", $tags="vm") {
+            Container(caddy_personal, "Caddy", "Reverse Proxy", $tags="docker")
+            Container(prometheus, "Prometheus", "Monitoring", $tags="docker")
+            Container(grafana, "Grafana", "Monitoring Dashboard", $tags="docker")
+        }
+    }
+    AddProperty("Disk", "1TB")
+    AddProperty("CPU", "1")
+    AddProperty("GPU", "1")
+    AddProperty("RAM", "8GB")
+    Deployment_Node(windowshypervisor, "Windows 10 Home", $tags="hypervisor") {
+        Container(parsec, "Parsec", "Parsec", $tags="docker")
+        Container(steam, "Steam", "Steam", $tags="docker")
+    }
+
+}
+
+Rel(user, cloudflare, "Accesses", "HTTPS", $tags="firewall")
+Rel(administration_user, teleport, "Uses", "SSH", $tags="firewall")
+Rel(cloudflare, vps, "Redirects & Secures", "HTTPS", $tags="firewall")
+Rel(vps, homenetwork, "Redirects & Secures", "VPN Wireguard", $tags="firewall")
+Rel(vps, personalnetwork, "Redirects & Secures", "VPN Wireguard", $tags="firewall")
+Rel(vps, azure, "Redirects & Secures", "HTTPS", $tags="firewall")
+
+Rel(jackett, radarr, "Provides API", "HTTPS")
+Rel(jackett, bazarr, "Provides API", "HTTPS")
+Rel(jackett, sonarr, "Provides API", "HTTPS")
+Rel(radarr, deluge, "Sends torrents", "HTTPS")
+Rel(bazarr, deluge, "Sends torrents", "HTTPS")
+Rel(sonarr, deluge, "Sends torrents", "HTTPS")
+Rel(nzbhydra2, jackett, "Gets info", "HTTPS")
+Rel(caddy, caddy_personal, "use", "HTTPS")
+Rel(caddy_personal, ainewstracker, "use", "HTTPS")
+Rel(caddy_personal, marketwatchbot, "use", "HTTPS")
+Rel(caddy_personal, portainer, "use", "HTTPS")
+Rel(caddy_personal, plex, "use", "HTTPS")
+Rel(caddy_personal, jellyfin, "use", "HTTPS")
+SHOW_LEGEND()
+@enduml
